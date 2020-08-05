@@ -11,6 +11,7 @@ ns = dict([
         'track.gpx', events=['start-ns']
     )
 ])
+ns['gpxtpx'] = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
 #register namespaces for writing the file
 for k in ns:
     ET.register_namespace(k,ns[k])
@@ -23,7 +24,8 @@ with open('pebble.csv') as csv_file:
     for row in csv_reader:
         time = row[0]
         #2016-05-25T21:22:00Z
-        hr_times[time] = row[7]
+        if row[7]:
+            hr_times[time] = row[7]
 
 #set default for find
 ns['default']=ns['']
@@ -42,7 +44,7 @@ for trk in root:
                 if hr_dttm <= dttm.replace(tzinfo=None):
                     minutes_ago = dttm.replace(tzinfo=None) - timedelta(minutes = 3)
                     if hr_dttm >= minutes_ago:
-                        hr_rate = hr_times[hr_time] 
+                        hr_rate = hr_times[hr_time]
                     else:
                         hr_rate = ''
             #If we have a HR beet for this this point
@@ -51,5 +53,5 @@ for trk in root:
                 hr = ET.SubElement(tpe, "gpxtpx:hr")
                 #set the hr
                 hr.text = hr_rate
-
-tree.write('output.xml', xml_declaration = True, encoding = 'utf-8', method = 'xml')
+root.set("gpxtpx", ns['gpxtpx'])
+tree.write('output.xml', xml_declaration = True, encoding = 'utf-8', method = 'xml', short_empty_elements = True)
