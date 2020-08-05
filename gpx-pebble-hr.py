@@ -53,5 +53,5 @@ for trk in root:
                 hr = ET.SubElement(tpe, "gpxtpx:hr")
                 #set the hr
                 hr.text = hr_rate
-root.set("gpxtpx", ns['gpxtpx'])
+root.set("xmlns:gpxtpx", ns['gpxtpx'])
 tree.write('output.xml', xml_declaration = True, encoding = 'utf-8', method = 'xml', short_empty_elements = True)
