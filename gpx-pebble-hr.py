@@ -47,7 +47,6 @@ for trk in root:
             time = trkpt.find("default:time", ns)
             #2020-08-03T13:03:32+10:00
             dttm = datetime.strptime(time.text, "%Y-%m-%dT%H:%M:%S%z")
-            extensions = trkpt.find("default:extensions", ns)
             for hr_time in hr_times:
                 hr_dttm = datetime.strptime(hr_time,"%Y-%m-%dT%H:%M:%SZ%z")
                 if hr_dttm <= dttm:
@@ -58,6 +57,9 @@ for trk in root:
                         hr_rate = ''
             #If we have a HR beet for this this point
             if hr_rate:
+                extensions = trkpt.find("default:extensions", ns)
+                if not extensions:
+                    extensions = ET.SubElement(trkpt, "extensions")
                 tpe = ET.SubElement(extensions, "gpxtpx:TrackPointExtension")
                 hr = ET.SubElement(tpe, "gpxtpx:hr")
                 #set the hr
