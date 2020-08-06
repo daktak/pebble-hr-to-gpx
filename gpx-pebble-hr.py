@@ -26,7 +26,7 @@ with open('pebble.csv') as csv_file:
         #2016-05-25T21:22:00Z
         if row[7]:
             if row[7] != "0":
-                hr_times[time] = row[7]
+                hr_times[time+"+00:00"] = row[7]
 
 #set default for find
 ns['default']=ns['']
@@ -41,9 +41,9 @@ for trk in root:
             dttm = datetime.strptime(time.text, "%Y-%m-%dT%H:%M:%S%z")
             extensions = trkpt.find("default:extensions", ns)
             for hr_time in hr_times:
-                hr_dttm = datetime.strptime(hr_time,"%Y-%m-%dT%H:%M:%SZ")
-                if hr_dttm <= dttm.replace(tzinfo=None):
-                    minutes_ago = dttm.replace(tzinfo=None) - timedelta(minutes = 3)
+                hr_dttm = datetime.strptime(hr_time,"%Y-%m-%dT%H:%M:%SZ%z")
+                if hr_dttm <= dttm:
+                    minutes_ago = dttm - timedelta(minutes = 3)
                     if hr_dttm >= minutes_ago:
                         hr_rate = hr_times[hr_time]
                     else:
