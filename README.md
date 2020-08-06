@@ -9,7 +9,7 @@ In the watchface settings point to accept-file.php
 
 The field is "key"
 
-
+``````
   usage: gpx-pebble-hr.py [-h] gpx csv out
 
   positional arguments:
@@ -20,3 +20,4 @@ The field is "key"
 
   optional arguments:
     -h, --help  show this help message and exit
+```
