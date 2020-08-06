@@ -22,4 +22,4 @@ The field is "key"
     -h, --help  show this help message and exit
 ```
 
-![](screenshots/strava_hr.png?raw=true)
+![](screenshots/strava_hr.jpg?raw=true)
