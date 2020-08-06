@@ -25,7 +25,8 @@ with open('pebble.csv') as csv_file:
         time = row[0]
         #2016-05-25T21:22:00Z
         if row[7]:
-            hr_times[time] = row[7]
+            if row[7] != "0":
+                hr_times[time] = row[7]
 
 #set default for find
 ns['default']=ns['']
