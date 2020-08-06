@@ -2,7 +2,9 @@
 $currentdir = getcwd();
 $target = $currentdir .'/uploads/health.csv';
 $fp = fopen($target,'a');
-fwrite($fp,$_POST['key']);
-fwrite($fp,"\n");
+if ( !preg_match('/,0$/',$_POST['key']) ) {
+  fwrite($fp,$_POST['key']);
+  fwrite($fp,"\n");
+}
 fclose($fp); 
 ?>
