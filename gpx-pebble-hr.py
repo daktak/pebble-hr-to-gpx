@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 import xml.etree.ElementTree as ET
+import argparse
 import csv
 from xml.etree.ElementTree import Element, tostring
 from datetime import datetime, timedelta
-tree = ET.parse('track.gpx')
+
+parser = argparse.ArgumentParser()
+parser.add_argument("gpx", help="The gpx file to add heart rate data to")
+parser.add_argument("csv", help="The pebble health csv, column 1 time YYYY-mm-ddTHH:MI:SSZ, column 8 hr value")
+parser.add_argument("out", help="The output gpx file")
+args = parser.parse_args()
+
+tree = ET.parse(args.gpx)
 root = tree.getroot()
 
 ns = dict([
     node for _, node in ET.iterparse(
-        'track.gpx', events=['start-ns']
+        args.gpx, events=['start-ns']
     )
 ])
 ns['gpxtpx'] = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
@@ -18,7 +26,7 @@ for k in ns:
 
 hr_times = {}
 
-with open('pebble.csv') as csv_file:
+with open(args.csv) as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
     for row in csv_reader:
@@ -55,4 +63,4 @@ for trk in root:
                 #set the hr
                 hr.text = hr_rate
 root.set("xmlns:gpxtpx", ns['gpxtpx'])
-tree.write('output.xml', xml_declaration = True, encoding = 'utf-8', method = 'xml', short_empty_elements = True)
+tree.write(args.out, xml_declaration = True, encoding = 'utf-8', method = 'xml', short_empty_elements = True)
