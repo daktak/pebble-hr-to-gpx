@@ -5,7 +5,7 @@ host accept-file.php on a webserver
 
 make uploads/health.csv writable
 
-In the watchface settings point to accept-file.php
+In the watchapp settings point to accept-file.php
 
 The field is "key"
 
