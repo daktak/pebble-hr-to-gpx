@@ -9,4 +9,4 @@ if [[ -f "${ARCHIVE}.zstd" ]]; then
 else
   tar -cvf "${ARCHIVE}.zstd" "/tmp/${DATE}-hr.csv" --zstd
 fi
-echo "" > "${PEBBLE_HEALTH}
+echo "" > "${PEBBLE_HEALTH}"
