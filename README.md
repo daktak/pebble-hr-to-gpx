@@ -28,10 +28,10 @@ The field is "key"
 The following script could be executed to take your latest GPX, add health data and upload to Strava
 assuming you have synced your pebble-health
 ```
-  STRAVAUSER=user
+  STRAVAUSER=user@email.com
   STRAVAPASS=pass
   GPXDIR="/path/to/GPX/"
-  FILE=`find ${GPXDIR} -maxdepth 1 -type f -iname "*.gpx" -mtime -1 | tail 1`
+  FILE=`find ${GPXDIR} -maxdepth 1 -type f -iname "*.gpx" -mtime -1 | tail -1`
   PEBBLE_HEALTH="/var/www/localhost/htdocs/pebble-health/uploads/health.csv"
   OUTFILE=${GPXDIR}/HR/$(basename "${FILE}")
   if [[ -f "${FILE}" ]]; then
