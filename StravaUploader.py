@@ -46,7 +46,12 @@ def ImportToStrava(url, username, password, baseDir, file) :
         print('unknown error: ')
         return
     else:
-        print('Successfully logged in')
+        m = re.search('Log Out', response.text)
+        if m:
+            print('Successfully logged in')
+        else:
+            print('Unsuccessfull login')
+            return
 
     # Get upload file page
     try:
@@ -56,27 +61,38 @@ def ImportToStrava(url, username, password, baseDir, file) :
         print('unknown error: ')
         return
     else:
-        print('Successfully got upload page')
+        m = re.search('Upload and Sync Your Activities', response.text)
+        if m:
+            print('Successfully got upload page')
+        else:
+            print('Unable to get upload page')
+            return
 
+    data = {
+        "_method" : (None, "post"),
+        "authenticity_token" : (None,token) 
+    }
     files = {
         "_method" : (None, "post"),
         "authenticity_token" : (None,token) ,
         "files[]": (file,open(baseDir + "/" + file, 'rb'), 'text/xml')
     }
 
-    req = Request('POST', 'http://www.strava.com/upload/files', files=files).prepare()
+    #req = Request('POST', 'http://www.strava.com/upload/files', files=files).prepare()
     #print(req.body.decode('utf8'))
 
     try:
-        #response = s.post("http://www.strava.com/upload/files", data=files)
-        response = s.send(req)
+        response = s.post("http://www.strava.com/upload/files", data=data, files={file: open(baseDir + "/" + file, 'rb')})
+        #r = s.send(req)
     except Exception as e:
         print('unknown error: ' + baseDir + file)
     else:
-        print('Successfully uploaded file -->' + baseDir + file)
+        #print('Successfully uploaded file -->' + baseDir +"/"+ file)
         #print(response.content.decode('utf-8'))
-        print(response.status_code)
+        #print(r.status_code)
         print(response.text)
+        #print(r.request.body)
+        #print(r.request.headers)
 
     print('imported all files')
 
