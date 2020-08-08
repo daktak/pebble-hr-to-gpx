@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 import os
 import json
-import http.cookiejar
 import re
 import argparse
 import binascii
 from requests import Request, Session
 import urllib.parse
+from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 
 parser = argparse.ArgumentParser()
@@ -55,8 +55,7 @@ def ImportToStrava(url, username, password, baseDir, file) :
 
     # Get upload file page
     try:
-        #response = opener.open("http://www.strava.com/upload/select");
-        response = s.get("http://www.strava.com/upload/select");
+        response = s.get("https://www.strava.com/upload/select");
     except Exception as e:
         print('unknown error: ')
         return
@@ -68,31 +67,22 @@ def ImportToStrava(url, username, password, baseDir, file) :
             print('Unable to get upload page')
             return
 
-    data = {
-        "_method" : (None, "post"),
-        "authenticity_token" : (None,token) 
-    }
-    files = {
-        "_method" : (None, "post"),
-        "authenticity_token" : (None,token) ,
+    mp_encoder = MultipartEncoder(fields={
+        "_method" : "post",
+        "authenticity_token" : token,
         "files[]": (file,open(baseDir + "/" + file, 'rb'), 'text/xml')
-    }
-
-    #req = Request('POST', 'http://www.strava.com/upload/files', files=files).prepare()
-    #print(req.body.decode('utf8'))
+    })
 
     try:
-        response = s.post("http://www.strava.com/upload/files", data=data, files={file: open(baseDir + "/" + file, 'rb')})
-        #r = s.send(req)
+        response = s.post('https://www.strava.com/upload/files',data=mp_encoder,headers={'Content-Type': mp_encoder.content_type})
     except Exception as e:
         print('unknown error: ' + baseDir + file)
     else:
-        #print('Successfully uploaded file -->' + baseDir +"/"+ file)
-        #print(response.content.decode('utf-8'))
-        #print(r.status_code)
-        print(response.text)
-        #print(r.request.body)
-        #print(r.request.headers)
+        m = re.search('workflow', response.text)
+        if m:
+            print('Successfully uploaded file -->' + baseDir +"/"+ file)
+        else:
+            print(response.text)
 
     print('imported all files')
 
