@@ -30,7 +30,7 @@ with open(args.csv) as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
     for row in csv_reader:
-        if len(row) == 7:
+        if len(row) == 8:
             time = row[0]
             #2016-05-25T21:22:00Z
             if row[7]:
