@@ -19,7 +19,8 @@ ns = dict([
         args.gpx, events=['start-ns']
     )
 ])
-ns['gpxtpx'] = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
+if not ns['gpxtpx']:
+    ns['gpxtpx'] = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
 #register namespaces for writing the file
 for k in ns:
     ET.register_namespace(k,ns[k])
@@ -59,11 +60,13 @@ for trk in root:
             #If we have a HR beet for this this point
             if hr_rate:
                 extensions = trkpt.find("default:extensions", ns)
-                if not extensions:
+                if extensions is None:
                     extensions = ET.SubElement(trkpt, "extensions")
-                tpe = ET.SubElement(extensions, "gpxtpx:TrackPointExtension")
+                tpe = extensions.find("gpxtpx:TrackPointExtension",ns)
+                if tpe is None:
+                    tpe = ET.SubElement(extensions, "gpxtpx:TrackPointExtension")
                 hr = ET.SubElement(tpe, "gpxtpx:hr")
                 #set the hr
                 hr.text = hr_rate
-root.set("xmlns:gpxtpx", ns['gpxtpx'])
+#root.set("xmlns:gpxtpx", ns['gpxtpx'])
 tree.write(args.out, xml_declaration = True, encoding = 'utf-8', method = 'xml', short_empty_elements = True)
