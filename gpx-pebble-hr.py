@@ -40,7 +40,8 @@ with open(args.csv) as csv_file:
                     hr_times[time] = row[7]
 
 #set default for find
-ns['default']=ns['']
+ns['default']=root.tag.split("}")[0][1::]
+ET.register_namespace('',ns['default'])
 
 hr_rate = ''
 
