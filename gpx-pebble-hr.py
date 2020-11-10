@@ -4,12 +4,13 @@ import argparse
 import csv
 from xml.etree.ElementTree import Element, tostring
 from datetime import datetime, timedelta
+from dateutil import parser
 
-parser = argparse.ArgumentParser()
-parser.add_argument("gpx", help="The gpx file to add heart rate data to")
-parser.add_argument("csv", help="The pebble health csv, column 1 time YYYY-mm-ddTHH:MI:SSZ, column 8 hr value")
-parser.add_argument("out", help="The output gpx file")
-args = parser.parse_args()
+aparser = argparse.ArgumentParser()
+aparser.add_argument("gpx", help="The gpx file to add heart rate data to")
+aparser.add_argument("csv", help="The pebble health csv, column 1 time YYYY-mm-ddTHH:MI:SSZ, column 8 hr value")
+aparser.add_argument("out", help="The output gpx file")
+args = aparser.parse_args()
 
 tree = ET.parse(args.gpx)
 root = tree.getroot()
@@ -36,7 +37,7 @@ with open(args.csv) as csv_file:
             #2016-05-25T21:22:00Z
             if row[7]:
                 if row[7] != "0":
-                    hr_times[time+"+00:00"] = row[7]
+                    hr_times[time] = row[7]
 
 #set default for find
 ns['default']=ns['']
@@ -48,9 +49,11 @@ for trk in root:
         for trkpt in trkseg.findall("default:trkpt", ns):
             time = trkpt.find("default:time", ns)
             #2020-08-03T13:03:32+10:00
-            dttm = datetime.strptime(time.text, "%Y-%m-%dT%H:%M:%S%z")
+            #dttm = datetime.strptime(time.text, "%Y-%m-%dT%H:%M:%S%z")
+            dttm = parser.parse(time.text)
             for hr_time in hr_times:
-                hr_dttm = datetime.strptime(hr_time,"%Y-%m-%dT%H:%M:%SZ%z")
+                #hr_dttm = datetime.strptime(hr_time,"%Y-%m-%dT%H:%M:%SZ%z")
+                hr_dttm = parser.parse(hr_time)
                 if hr_dttm <= dttm:
                     minutes_ago = dttm - timedelta(minutes = 3)
                     if hr_dttm >= minutes_ago:
