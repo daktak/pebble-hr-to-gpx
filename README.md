@@ -43,6 +43,27 @@ assuming you have synced your pebble-health
   fi
 ```
 
+## Python requirements
+
+```
+pip install -r requirements.txt
+```
+
+Or directly:
+
+```
+pip install requests requests-toolbelt python-dateutil
+```
+
+On Debian/Ubuntu where system Python is externally managed (PEP 668), use a virtual
+environment instead:
+
+```
+python3 -m venv .venv
+.venv/bin/pip install requests requests-toolbelt python-dateutil
+.venv/bin/python ./StravaUploader.py test.gpx
+```
+
 ## StravaUploader login
 
 `StravaUploader.py` uploads to Strava using your Google login. Credentials are your Google
