@@ -1,4 +1,5 @@
 # pebble-hr-to-gpx
+
 Pebble 2HR watch extract heart rate measurements and add HR data to a given GPX file
 
 host accept-file.php on a webserver
@@ -24,9 +25,9 @@ The field is "key"
 
 ![](screenshots/strava_hr.jpg?raw=true)
 
-
 The following script could be executed to take your latest GPX, add health data and upload to Strava
 assuming you have synced your pebble-health
+
 ```
   STRAVAUSER=user@email.com
   STRAVAPASS=pass
@@ -41,3 +42,36 @@ assuming you have synced your pebble-health
     fi
   fi
 ```
+
+## StravaUploader login
+
+`StravaUploader.py` uploads to Strava using your Google login. Credentials are your Google
+account email/password:
+
+```
+  ./StravaUploader.py out.gpx you@gmail.com your-google-password
+```
+
+If you prefer not to type your Google password on the command line, or your account has
+two-step verification (which the automated login cannot handle), export a logged-in session
+once and reuse it:
+
+1. Log in to https://www.strava.com in a browser (via Google or otherwise).
+2. Open DevTools (F12) -> Console and run `document.cookie`.
+3. Copy the value of `_strava4_session=...` into `session.json` next to the script:
+
+```json
+{
+  "cookies": [
+    {
+      "name": "_strava4_session",
+      "value": "PASTE_VALUE_HERE",
+      "domain": ".strava.com",
+      "path": "/"
+    }
+  ]
+}
+```
+
+4. Run `./StravaUploader.py out.gpx` (no credentials needed while the session is valid).
+   A fresh session is saved back to `session.json` after each automated Google login.
