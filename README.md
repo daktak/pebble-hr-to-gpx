@@ -29,8 +29,6 @@ The following script could be executed to take your latest GPX, add health data 
 assuming you have synced your pebble-health
 
 ```
-  STRAVAUSER=user@email.com
-  STRAVAPASS=pass
   GPXDIR="/path/to/GPX/"
   FILE=`find ${GPXDIR} -maxdepth 1 -type f -iname "*.gpx" -mtime -1 | tail -1`
   PEBBLE_HEALTH="/var/www/localhost/htdocs/pebble-health/uploads/health.csv"
@@ -38,7 +36,7 @@ assuming you have synced your pebble-health
   if [[ -f "${FILE}" ]]; then
     if [[ ! -f "${OUTFILE}" ]]; then
       gpx-pebble-hr.py "${FILE}" "${PEBBLE_HEALTH}" "${OUTFILE}"
-      ./StravaUploader.py "${OUTFILE}" ${STRAVAUSER} ${STRAVAPASS}
+      ./StravaUploader.py "${OUTFILE}"
     fi
   fi
 ```
@@ -66,16 +64,10 @@ python3 -m venv .venv
 
 ## StravaUploader login
 
-`StravaUploader.py` uploads to Strava using your Google login. Credentials are your Google
-account email/password:
+`StravaUploader.py` uploads to Strava using a saved session cookie. Login is only supported via a
+session file; automated Google email/password login is not available.
 
-```
-  ./StravaUploader.py out.gpx you@gmail.com your-google-password
-```
-
-If you prefer not to type your Google password on the command line, or your account has
-two-step verification (which the automated login cannot handle), export a logged-in session
-once and reuse it:
+Export a logged-in session once and reuse it:
 
 1. Log in to https://www.strava.com in a browser (via Google or otherwise).
 2. Open DevTools (F12) -> Console and run `document.cookie`.
@@ -95,4 +87,3 @@ once and reuse it:
 ```
 
 4. Run `./StravaUploader.py out.gpx` (no credentials needed while the session is valid).
-   A fresh session is saved back to `session.json` after each automated Google login.
