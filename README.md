@@ -87,3 +87,12 @@ Export a logged-in session once and reuse it:
 ```
 
 4. Run `./StravaUploader.py out.gpx` (no credentials needed while the session is valid).
+
+## Setting the activity name
+
+`StravaUploader.py` names the activity after the uploaded file by default. To override it, pass
+`--name`; after the file finishes processing the activity is renamed on Strava:
+
+```
+./StravaUploader.py out.gpx --name "Morning Ride"
+```
