@@ -96,3 +96,13 @@ Export a logged-in session once and reuse it:
 ```
 ./StravaUploader.py out.gpx --name "Morning Ride"
 ```
+
+## Setting the activity type
+
+Pass `--type` to change the activity type after upload (e.g. `GravelRide`, `VirtualRide`, `Run`).
+Run `./StravaUploader.py --help` to list all valid types. If Strava rejects the requested type,
+the script falls back to `Ride`:
+
+```
+./StravaUploader.py out.gpx --type GravelRide --name "Gravel Ride"
+```

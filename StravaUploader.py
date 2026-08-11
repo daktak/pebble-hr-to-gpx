@@ -13,12 +13,80 @@ SELECT_URL = "https://www.strava.com/upload/select"
 PROGRESS_URL = "https://www.strava.com/upload/progress.json"
 BULK_UPDATE_URL = "https://www.strava.com/athlete/training_activities/bulk_update"
 
+SPORT_TYPES = {
+    "AlpineSki": "Alpine Ski",
+    "BackcountrySki": "Backcountry Ski",
+    "Badminton": "Badminton",
+    "Basketball": "Basketball",
+    "Canoeing": "Canoe",
+    "ClassicNordicSki": "Classic Nordic Ski",
+    "Crossfit": "Crossfit",
+    "Cricket": "Cricket",
+    "Dance": "Dance",
+    "EBikeRide": "E-Bike Ride",
+    "EMountainBikeRide": "E-Mountain Bike Ride",
+    "Elliptical": "Elliptical",
+    "Golf": "Golf",
+    "GravelRide": "Gravel Ride",
+    "Handcycle": "Handcycle",
+    "HighIntensityIntervalTraining": "HIIT",
+    "Hike": "Hike",
+    "IceSkate": "Ice Skate",
+    "InlineSkate": "Inline Skate",
+    "Kayaking": "Kayaking",
+    "Kitesurf": "Kitesurf",
+    "MountainBikeRide": "Mountain Bike Ride",
+    "NordicSki": "Nordic Ski",
+    "Padel": "Padel",
+    "PhysicalTherapy": "Physical Therapy",
+    "Pickleball": "Pickleball",
+    "Pilates": "Pilates",
+    "Racquetball": "Racquetball",
+    "Ride": "Ride",
+    "RockClimbing": "Rock Climb",
+    "RollerSki": "Roller Ski",
+    "Rowing": "Rowing",
+    "Run": "Run",
+    "Sail": "Sail",
+    "SkateNordicSki": "Skate Nordic Ski",
+    "Skateboard": "Skateboard",
+    "Snowboard": "Snowboard",
+    "Snowshoe": "Snowshoe",
+    "Soccer": "Football (Soccer)",
+    "Squash": "Squash",
+    "StairStepper": "Stair-Stepper",
+    "StandUpPaddling": "Stand Up Paddling",
+    "Surfing": "Surfing",
+    "Swim": "Swim",
+    "TableTennis": "Table Tennis",
+    "Tennis": "Tennis",
+    "TrailRun": "Trail Run",
+    "Velomobile": "Velomobile",
+    "VirtualRide": "Virtual Ride",
+    "VirtualRow": "Virtual Row",
+    "VirtualRun": "Virtual Run",
+    "Volleyball": "Volleyball",
+    "Walk": "Walk",
+    "WeightTraining": "Weight Training",
+    "Wheelchair": "Wheelchair",
+    "Windsurf": "Windsurf",
+    "Workout": "Workout",
+    "Yoga": "Yoga",
+}
+
 parser = argparse.ArgumentParser()
 parser.add_argument("gpx", help="The gpx file to upload")
 parser.add_argument(
     "--session", default="session.json", help="Path to saved session cookies JSON"
 )
 parser.add_argument("--name", help="Name to set on the uploaded activity")
+parser.add_argument(
+    "--type",
+    choices=sorted(SPORT_TYPES),
+    metavar="TYPE",
+    help="Activity type to set on the uploaded activity. "
+    "Valid values: " + ", ".join(sorted(SPORT_TYPES)),
+)
 args = parser.parse_args()
 
 
@@ -57,7 +125,7 @@ def wait_ready(s, upload_id):
     return None
 
 
-def rename_fields(act, aid, name):
+def rename_fields(act, aid, name, sport_type=None):
     data = {"id": aid, "name": name}
     for key in (
         "description",
@@ -69,24 +137,26 @@ def rename_fields(act, aid, name):
     ):
         if key in act:
             data[key] = act[key]
-    if "type" in act:
-        data["sport_type"] = act["type"]
+    data["sport_type"] = sport_type or act.get("type")
     return data
 
 
-def rename(s, act, aid, name, token):
+def rename(s, act, aid, name, sport_type, token):
     r = s.post(
         BULK_UPDATE_URL,
-        json={"activities": [rename_fields(act, aid, name)]},
+        json={"activities": [rename_fields(act, aid, name, sport_type)]},
         headers={"X-CSRF-Token": token},
     )
     if r.ok:
         print("Set activity name to: " + name)
+    elif sport_type and sport_type != "Ride":
+        print("Failed to set type " + sport_type + ", falling back to Ride")
+        rename(s, act, aid, name, "Ride", token)
     else:
         print("Failed to set name: " + r.text)
 
 
-def ImportToStrava(gpx, session_path, name=None):
+def ImportToStrava(gpx, session_path, name=None, sport_type=None):
     s = Session()
     s.headers["User-Agent"] = (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
@@ -149,11 +219,11 @@ def ImportToStrava(gpx, session_path, name=None):
             if not aid:
                 print("No activity id in upload response")
                 return
-            rename(s, act, aid, name, token)
+            rename(s, act, aid, name, sport_type, token)
 
 
 def main():
-    ImportToStrava(args.gpx, args.session, args.name)
+    ImportToStrava(args.gpx, args.session, args.name, args.type)
 
 
 if __name__ == "__main__":
