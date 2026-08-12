@@ -100,8 +100,7 @@ Export a logged-in session once and reuse it:
 ## Setting the activity type
 
 Pass `--type` to change the activity type after upload (e.g. `GravelRide`, `VirtualRide`, `Run`).
-Run `./StravaUploader.py --help` to list all valid types. If Strava rejects the requested type,
-the script falls back to `Ride`:
+Run `./StravaUploader.py --help` to list all valid types:
 
 ```
 ./StravaUploader.py out.gpx --type GravelRide --name "Gravel Ride"
@@ -109,13 +108,15 @@ the script falls back to `Ride`:
 
 ## Attaching photos
 
-Pass one or more image files with `--photos` to attach them to the uploaded activity after it is
-named. Images are uploaded through Strava's photo endpoint and then attached by re-submitting the
-activity edit form, so the activity name and type set by `--name`/`--type` are preserved:
+Pass one or more image files with `--photos` to attach them to the uploaded activity. Images are
+uploaded through Strava's photo endpoint and then attached by submitting the activity edit form:
 
 ```
 ./StravaUploader.py out.gpx --photos screenshot1.jpg screenshot2.jpg
 ```
+
+The name, type and photos are all applied in a single edit-form submission, so when
+`--name`/`--type` are combined with `--photos` they are saved together in one transaction.
 
 Photo attachment is best-effort: if an individual image fails to upload or the final save fails,
 the already-uploaded activity is left untouched and the script just prints what went wrong.

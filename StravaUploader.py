@@ -12,7 +12,6 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 UPLOAD_URL = "https://www.strava.com/upload/files"
 SELECT_URL = "https://www.strava.com/upload/select"
 PROGRESS_URL = "https://www.strava.com/upload/progress.json"
-BULK_UPDATE_URL = "https://www.strava.com/athlete/training_activities/bulk_update"
 PHOTO_METADATA_URL = "https://www.strava.com/photos/metadata"
 EDIT_URL = "https://www.strava.com/activities/%s/edit"
 ACTIVITY_URL = "https://www.strava.com/activities/%s"
@@ -136,35 +135,11 @@ def wait_ready(s, upload_id):
     return None
 
 
-def rename_fields(act, aid, name, sport_type=None):
-    data = {"id": aid, "name": name}
-    for key in (
-        "description",
-        "commute",
-        "trainer",
-        "workout_type",
-        "bike_id",
-        "athlete_gear_id",
-    ):
-        if key in act:
-            data[key] = act[key]
-    data["sport_type"] = sport_type or act.get("type")
-    return data
-
-
-def rename(s, act, aid, name, sport_type, token):
-    r = s.post(
-        BULK_UPDATE_URL,
-        json={"activities": [rename_fields(act, aid, name, sport_type)]},
-        headers={"X-CSRF-Token": token},
-    )
-    if r.ok:
-        print("Set activity name to: " + name)
-    elif sport_type and sport_type != "Ride":
-        print("Failed to set type " + sport_type + ", falling back to Ride")
-        rename(s, act, aid, name, "Ride", token)
-    else:
-        print("Failed to set name: " + r.text)
+def key_for(data, *cands):
+    for c in cands:
+        if c in data:
+            return c
+    return cands[0]
 
 
 def parse_form(form):
@@ -191,11 +166,16 @@ def parse_form(form):
         name = re.search(r'name="([^"]+)"', tag)
         if not name:
             continue
-        opts = re.findall(r"<option\b([^>]*)>([^<]*)</option>", tag)
+        opts = re.findall(r"<option\b([^>]*)>(.*?)</option>", tag, re.S)
         if not opts:
             continue
-        sel = [v for a, v in opts if "selected" in a]
-        data[unescape(name.group(1))] = unescape((sel or [opts[0][1]])[0])
+
+        def optval(attrs, text):
+            m = re.search(r'value="([^"]*)"', attrs)
+            return unescape(m.group(1)) if m else unescape(text)
+
+        chosen = [o for o in opts if "selected" in o[0]]
+        data[unescape(name.group(1))] = optval(*(chosen or opts)[0])
     for m in re.finditer(r"<textarea\b[^>]*>.*?</textarea>", form, re.S):
         tag = m.group(0)
         name = re.search(r'name="([^"]+)"', tag)
@@ -206,7 +186,27 @@ def parse_form(form):
     return data
 
 
-def attach_photos(s, aid, photos):
+def upload_photo(s, token, athlete_id, photo):
+    uid = str(uuid.uuid4())
+    taken_at = int(os.path.getmtime(photo) * 1000)
+    r = s.put(
+        PHOTO_METADATA_URL,
+        data={"athlete_id": athlete_id, "uuid": uid, "taken_at": taken_at},
+        headers={"X-CSRF-Token": token},
+    )
+    if not r.ok:
+        print("Photo metadata failed: " + photo)
+        return None
+    with open(photo, "rb") as f:
+        raw = f.read()
+    r = s.put(r.json()["uri"], data=raw, headers=r.json()["header"])
+    if not r.ok:
+        print("Photo upload failed: " + photo)
+        return None
+    return uid
+
+
+def update_activity(s, aid, name=None, sport_type=None, photos=None):
     edit = s.get(EDIT_URL % aid)
     if not edit.ok:
         print("Unable to get activity edit page")
@@ -226,37 +226,38 @@ def attach_photos(s, aid, photos):
         print("Cannot find edit form on edit page")
         return
     data = parse_form(m.group(0))
-    count = 0
-    for photo in photos:
-        uid = str(uuid.uuid4())
-        taken_at = int(os.path.getmtime(photo) * 1000)
-        r = s.put(
-            PHOTO_METADATA_URL,
-            data={"athlete_id": athlete_id, "uuid": uid, "taken_at": taken_at},
-            headers={"X-CSRF-Token": token},
+    data.setdefault("_method", "patch")
+    if name:
+        data[key_for(data, "activity[name]", "name")] = name
+        print("Setting activity name to: " + name)
+    if sport_type:
+        key = key_for(
+            data, "activity[sport_type]", "sport_type", "activity[type]", "type"
         )
-        if not r.ok:
-            print("Photo metadata failed: " + photo)
-            continue
-        meta = r.json()
-        with open(photo, "rb") as f:
-            raw = f.read()
-        r = s.put(meta["uri"], data=raw, headers=meta["header"])
-        if not r.ok:
-            print("Photo upload failed: " + photo)
+        data[key] = sport_type
+    count = 0
+    for photo in photos or []:
+        uid = upload_photo(s, token, athlete_id, photo)
+        if not uid:
             continue
         data["photos[%s][caption]" % uid] = ""
         data["photos[%s][rank]" % uid] = str(count)
         data["photos[%s][media_type]" % uid] = "1"
         count += 1
-    if not count:
-        print("No photos attached")
+    if count:
+        print("Attaching " + str(count) + " photo(s)")
+    if not name and not sport_type and not count:
         return
     r = s.post(ACTIVITY_URL % aid, data=data)
     if r.ok:
-        print("Attached " + str(count) + " photo(s) to activity")
+        if name:
+            print("Activity name updated")
+        if sport_type:
+            print("Activity type updated")
+        if count:
+            print("Attached " + str(count) + " photo(s) to activity")
     else:
-        print("Failed to save photos on activity: " + r.text[:200])
+        print("Failed to save activity: " + r.text[:200])
 
 
 def ImportToStrava(gpx, session_path, name=None, sport_type=None, photos=None):
@@ -322,10 +323,8 @@ def ImportToStrava(gpx, session_path, name=None, sport_type=None, photos=None):
             if not aid:
                 print("No activity id in upload response")
                 return
-            if name:
-                rename(s, act, aid, name, sport_type, token)
-            if photos:
-                attach_photos(s, aid, photos)
+            if name or photos:
+                update_activity(s, aid, name, sport_type, photos)
 
 
 def main():
