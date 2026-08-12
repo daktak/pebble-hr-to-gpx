@@ -106,3 +106,16 @@ the script falls back to `Ride`:
 ```
 ./StravaUploader.py out.gpx --type GravelRide --name "Gravel Ride"
 ```
+
+## Attaching photos
+
+Pass one or more image files with `--photos` to attach them to the uploaded activity after it is
+named. Images are uploaded through Strava's photo endpoint and then attached by re-submitting the
+activity edit form, so the activity name and type set by `--name`/`--type` are preserved:
+
+```
+./StravaUploader.py out.gpx --photos screenshot1.jpg screenshot2.jpg
+```
+
+Photo attachment is best-effort: if an individual image fails to upload or the final save fails,
+the already-uploaded activity is left untouched and the script just prints what went wrong.

@@ -3,6 +3,7 @@ import os
 import re
 import json
 import time
+import uuid
 import argparse
 from html import unescape
 from requests import Session
@@ -12,6 +13,9 @@ UPLOAD_URL = "https://www.strava.com/upload/files"
 SELECT_URL = "https://www.strava.com/upload/select"
 PROGRESS_URL = "https://www.strava.com/upload/progress.json"
 BULK_UPDATE_URL = "https://www.strava.com/athlete/training_activities/bulk_update"
+PHOTO_METADATA_URL = "https://www.strava.com/photos/metadata"
+EDIT_URL = "https://www.strava.com/activities/%s/edit"
+ACTIVITY_URL = "https://www.strava.com/activities/%s"
 
 SPORT_TYPES = {
     "AlpineSki": "Alpine Ski",
@@ -87,6 +91,13 @@ parser.add_argument(
     help="Activity type to set on the uploaded activity. "
     "Valid values: " + ", ".join(sorted(SPORT_TYPES)),
 )
+parser.add_argument(
+    "--photos",
+    nargs="*",
+    default=[],
+    metavar="PHOTO",
+    help="Image files to attach to the uploaded activity",
+)
 args = parser.parse_args()
 
 
@@ -156,7 +167,99 @@ def rename(s, act, aid, name, sport_type, token):
         print("Failed to set name: " + r.text)
 
 
-def ImportToStrava(gpx, session_path, name=None, sport_type=None):
+def parse_form(form):
+    data = {}
+    for m in re.finditer(r"<input\b[^>]*>", form):
+        tag = m.group(0)
+        if re.search(r"\bdisabled\b|\btype=[\"'](?:submit|button|file)[\"']", tag):
+            continue
+        name = re.search(r'name="([^"]+)"', tag)
+        if not name:
+            continue
+        name = unescape(name.group(1))
+        val = re.search(r'value="([^"]*)"', tag)
+        val = unescape(val.group(1)) if val else ""
+        if re.search(r'type="checkbox"', tag):
+            if re.search(r"\bchecked\b", tag):
+                data[name] = val or "1"
+        else:
+            data[name] = val
+    for m in re.finditer(r"<select\b[^>]*>.*?</select>", form, re.S):
+        tag = m.group(0)
+        if re.search(r"\bdisabled\b", tag):
+            continue
+        name = re.search(r'name="([^"]+)"', tag)
+        if not name:
+            continue
+        opts = re.findall(r"<option\b([^>]*)>([^<]*)</option>", tag)
+        if not opts:
+            continue
+        sel = [v for a, v in opts if "selected" in a]
+        data[unescape(name.group(1))] = unescape((sel or [opts[0][1]])[0])
+    for m in re.finditer(r"<textarea\b[^>]*>.*?</textarea>", form, re.S):
+        tag = m.group(0)
+        name = re.search(r'name="([^"]+)"', tag)
+        if not name:
+            continue
+        val = re.search(r">(.*)</textarea>", tag, re.S)
+        data[unescape(name.group(1))] = unescape(val.group(1)) if val else ""
+    return data
+
+
+def attach_photos(s, aid, photos):
+    edit = s.get(EDIT_URL % aid)
+    if not edit.ok:
+        print("Unable to get activity edit page")
+        return
+    m = re.search(r'name="authenticity_token" value="([^"]+)"', edit.text)
+    if not m:
+        print("Cannot find authenticity token on edit page")
+        return
+    token = unescape(m.group(1))
+    m = re.search(r"var athleteId = (\d+);", edit.text)
+    if not m:
+        print("Cannot find athlete id on edit page")
+        return
+    athlete_id = int(m.group(1))
+    m = re.search(r'<form class="edit_activity".*?</form>', edit.text, re.S)
+    if not m:
+        print("Cannot find edit form on edit page")
+        return
+    data = parse_form(m.group(0))
+    count = 0
+    for photo in photos:
+        uid = str(uuid.uuid4())
+        taken_at = int(os.path.getmtime(photo) * 1000)
+        r = s.put(
+            PHOTO_METADATA_URL,
+            data={"athlete_id": athlete_id, "uuid": uid, "taken_at": taken_at},
+            headers={"X-CSRF-Token": token},
+        )
+        if not r.ok:
+            print("Photo metadata failed: " + photo)
+            continue
+        meta = r.json()
+        with open(photo, "rb") as f:
+            raw = f.read()
+        r = s.put(meta["uri"], data=raw, headers=meta["header"])
+        if not r.ok:
+            print("Photo upload failed: " + photo)
+            continue
+        data["photos[%s][caption]" % uid] = ""
+        data["photos[%s][rank]" % uid] = str(count)
+        data["photos[%s][media_type]" % uid] = "1"
+        count += 1
+    if not count:
+        print("No photos attached")
+        return
+    r = s.post(ACTIVITY_URL % aid, data=data)
+    if r.ok:
+        print("Attached " + str(count) + " photo(s) to activity")
+    else:
+        print("Failed to save photos on activity: " + r.text[:200])
+
+
+def ImportToStrava(gpx, session_path, name=None, sport_type=None, photos=None):
     s = Session()
     s.headers["User-Agent"] = (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
@@ -207,7 +310,7 @@ def ImportToStrava(gpx, session_path, name=None, sport_type=None):
             print(response.text)
             return
         print("Successfully uploaded file -->" + baseDir + "/" + file)
-        if not name:
+        if not name and not photos:
             return
         for upload in response.json():
             item = wait_ready(s, upload.get("id"))
@@ -219,11 +322,14 @@ def ImportToStrava(gpx, session_path, name=None, sport_type=None):
             if not aid:
                 print("No activity id in upload response")
                 return
-            rename(s, act, aid, name, sport_type, token)
+            if name:
+                rename(s, act, aid, name, sport_type, token)
+            if photos:
+                attach_photos(s, aid, photos)
 
 
 def main():
-    ImportToStrava(args.gpx, args.session, args.name, args.type)
+    ImportToStrava(args.gpx, args.session, args.name, args.type, args.photos)
 
 
 if __name__ == "__main__":
