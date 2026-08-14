@@ -97,6 +97,21 @@ parser.add_argument(
     metavar="PHOTO",
     help="Image files to attach to the uploaded activity",
 )
+parser.add_argument(
+    "--tags",
+    help="Comma/space separated tags to set on the uploaded activity",
+)
+parser.add_argument(
+    "--private",
+    choices=["everyone", "followers", "only_me"],
+    metavar="PRIVACY",
+    help="Activity visibility: everyone, followers, or only_me",
+)
+parser.add_argument(
+    "--mute",
+    action="store_true",
+    help="Mute the activity from home and club feeds",
+)
 args = parser.parse_args()
 
 
@@ -186,6 +201,13 @@ def parse_form(form):
     return data
 
 
+def find_field(form, *cands):
+    for c in cands:
+        if re.search(r'name="%s"' % re.escape(c), form):
+            return c
+    return None
+
+
 def upload_photo(s, token, athlete_id, photo):
     uid = str(uuid.uuid4())
     taken_at = int(os.path.getmtime(photo) * 1000)
@@ -206,7 +228,9 @@ def upload_photo(s, token, athlete_id, photo):
     return uid
 
 
-def update_activity(s, aid, name=None, sport_type=None, photos=None):
+def update_activity(
+    s, aid, name=None, sport_type=None, photos=None, tags=None, private=None, mute=False
+):
     edit = s.get(EDIT_URL % aid)
     if not edit.ok:
         print("Unable to get activity edit page")
@@ -246,7 +270,34 @@ def update_activity(s, aid, name=None, sport_type=None, photos=None):
         count += 1
     if count:
         print("Attaching " + str(count) + " photo(s)")
-    if not name and not sport_type and not count:
+    mute_key = None
+    if tags:
+        tlist = [t for t in re.split(r"[,\s]+", tags.strip()) if t]
+        data["activity[tag_list]"] = ",".join(tlist)
+        print("Setting tags: " + ", ".join(tlist))
+    privacy_values = {
+        "everyone": "everyone",
+        "followers": "followers_only",
+        "only_me": "only_me",
+    }
+    if private:
+        data["activity[visibility]"] = privacy_values[private]
+        print("Setting privacy to: " + private)
+    if mute:
+        mute_key = find_field(m.group(0), "activity[hide_from_home]", "hide_from_home")
+        if mute_key:
+            data[mute_key] = "true"
+            print("Muting activity")
+        else:
+            print("Mute checkbox not found in edit form; skipping")
+    if (
+        not name
+        and not sport_type
+        and not count
+        and not tags
+        and not private
+        and not mute
+    ):
         return
     r = s.post(ACTIVITY_URL % aid, data=data)
     if r.ok:
@@ -256,11 +307,26 @@ def update_activity(s, aid, name=None, sport_type=None, photos=None):
             print("Activity type updated")
         if count:
             print("Attached " + str(count) + " photo(s) to activity")
+        if tags:
+            print("Tags updated")
+        if private:
+            print("Privacy updated")
+        if mute and mute_key:
+            print("Mute updated")
     else:
         print("Failed to save activity: " + r.text[:200])
 
 
-def ImportToStrava(gpx, session_path, name=None, sport_type=None, photos=None):
+def ImportToStrava(
+    gpx,
+    session_path,
+    name=None,
+    sport_type=None,
+    photos=None,
+    tags=None,
+    private=None,
+    mute=False,
+):
     s = Session()
     s.headers["User-Agent"] = (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
@@ -311,7 +377,7 @@ def ImportToStrava(gpx, session_path, name=None, sport_type=None, photos=None):
             print(response.text)
             return
         print("Successfully uploaded file -->" + baseDir + "/" + file)
-        if not name and not photos:
+        if not name and not photos and not tags and not private and not mute:
             return
         for upload in response.json():
             item = wait_ready(s, upload.get("id"))
@@ -323,12 +389,21 @@ def ImportToStrava(gpx, session_path, name=None, sport_type=None, photos=None):
             if not aid:
                 print("No activity id in upload response")
                 return
-            if name or photos:
-                update_activity(s, aid, name, sport_type, photos)
+            if name or photos or tags or private or mute:
+                update_activity(s, aid, name, sport_type, photos, tags, private, mute)
 
 
 def main():
-    ImportToStrava(args.gpx, args.session, args.name, args.type, args.photos)
+    ImportToStrava(
+        args.gpx,
+        args.session,
+        args.name,
+        args.type,
+        args.photos,
+        args.tags,
+        args.private,
+        args.mute,
+    )
 
 
 if __name__ == "__main__":

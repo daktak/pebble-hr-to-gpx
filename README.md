@@ -120,3 +120,21 @@ The name, type and photos are all applied in a single edit-form submission, so w
 
 Photo attachment is best-effort: if an individual image fails to upload or the final save fails,
 the already-uploaded activity is left untouched and the script just prints what went wrong.
+
+## Setting tags, privacy and mute
+
+These are also applied via the activity edit form (the same `/activities/<id>/edit` submission used
+for name/type/photos), so they can be combined with any of the other options in one transaction.
+
+- `--tags` — comma or space separated tags, e.g. `--tags "ride, commute"` or `--tags ride commute`.
+- `--private` — activity visibility: `everyone`, `followers`, or `only_me`.
+- `--mute` — mute the activity from home and club feeds.
+
+```
+./StravaUploader.py out.gpx --tags "ride, commute" --private followers --mute
+```
+
+These map to Strava's edit-form fields: tags → `activity[tag_list]`, privacy → `activity[visibility]`
+(`everyone` / `followers_only` / `only_me`), and mute → `activity[hide_from_home]`. If the mute
+checkbox is not present in the form (e.g. Strava changes its UI), the script prints a warning and
+skips that part of the update rather than failing.
